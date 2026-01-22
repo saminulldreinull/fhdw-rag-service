@@ -1,4 +1,4 @@
-name: Promptfoo LLM Testing
+name: FHDW RAG Service - Prompt Security Testing
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   test-prompts:
+    name: RAG Security Tests
     runs-on: ubuntu-latest
     
     steps:
@@ -22,59 +23,61 @@ jobs:
       - name: Install Promptfoo
         run: npm install -g promptfoo
 
-      - name: Run Promptfoo Tests
+      - name: Run RAG Security Tests
         id: promptfoo
         working-directory: ./fhdw_rag_demo/model_comparison
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         continue-on-error: true
         run: |
-          echo "🧪 Running Promptfoo evaluation..."
+          echo "🔒 Running FHDW RAG Security Tests..."
           npx promptfoo eval --no-cache -o results.json --no-table
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
-      - name: Create Summary Card
+      - name: Create Security Report
         if: always()
         working-directory: ./fhdw_rag_demo/model_comparison
         run: |
-          echo "# 🧪 LLM Prompt Testing Results" >> $GITHUB_STEP_SUMMARY
+          echo "# 🎓 FHDW RAG Service - Security Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f results.json ]; then
-            # Parse results
             TOTAL=$(cat results.json | jq '.results.stats.successes + .results.stats.failures')
             PASSED=$(cat results.json | jq '.results.stats.successes')
             FAILED=$(cat results.json | jq '.results.stats.failures')
             
             if [ "$FAILED" -gt 0 ]; then
-              echo "## ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
+              echo "## 🚨 Security Vulnerability Detected" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "> **$FAILED** of **$TOTAL** tests failed. Your prompts need improvement!" >> $GITHUB_STEP_SUMMARY
+              echo "> **$FAILED** of **$TOTAL** prompts are vulnerable to injection attacks!" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### ⚠️ Action Required" >> $GITHUB_STEP_SUMMARY
+              echo "The RAG Service contains prompts that can be manipulated. Do NOT deploy to production!" >> $GITHUB_STEP_SUMMARY
             else
-              echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+              echo "## ✅ All Security Tests Passed" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "> **$PASSED** of **$TOTAL** tests passed. Your prompts are production-ready!" >> $GITHUB_STEP_SUMMARY
+              echo "> All **$PASSED** prompts are resistant to injection attacks. Ready for production!" >> $GITHUB_STEP_SUMMARY
             fi
             
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📊 Results" >> $GITHUB_STEP_SUMMARY
+            echo "### 📊 Test Results" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
-            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Test | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Secure Prompts | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🚨 Vulnerable Prompts | $FAILED |" >> $GITHUB_STEP_SUMMARY
             echo "| 📋 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
             
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "*Powered by [Promptfoo](https://promptfoo.dev) - LLM Testing Framework*" >> $GITHUB_STEP_SUMMARY
+            echo "📚 *FHDW - Software Engineering & DevOps | Automatisierte LLM-Sicherheitstests*" >> $GITHUB_STEP_SUMMARY
           else
-            echo "## ⚠️ No Results Found" >> $GITHUB_STEP_SUMMARY
-            echo "The evaluation may have failed to run." >> $GITHUB_STEP_SUMMARY
+            echo "## ⚠️ Test Execution Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Could not run security tests. Check the logs for details." >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Fail if tests failed
+      - name: Block Deployment if Vulnerable
         if: steps.promptfoo.outcome == 'failure'
         run: |
-          echo "❌ Promptfoo tests failed!"
+          echo "🚨 SECURITY ALERT: Vulnerable prompts detected! Blocking deployment."
           exit 1
