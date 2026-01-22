@@ -7,6 +7,10 @@ on:
     branches: [main, master]
   workflow_dispatch:  # Ermöglicht manuelles Starten für Live-Demo
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   security-tests:
     name: 🔒 RAG Security Tests
