@@ -23,15 +23,58 @@ jobs:
         run: npm install -g promptfoo
 
       - name: Run Promptfoo Tests
+        id: promptfoo
         working-directory: ./fhdw_rag_demo/model_comparison
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        continue-on-error: true
         run: |
           echo "🧪 Running Promptfoo evaluation..."
-          npx promptfoo eval --no-cache
+          npx promptfoo eval --no-cache -o results.json --no-table
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Create Summary Card
+        if: always()
+        working-directory: ./fhdw_rag_demo/model_comparison
+        run: |
+          echo "# 🧪 LLM Prompt Testing Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           
-      - name: Check Test Results
-        if: failure()
+          if [ -f results.json ]; then
+            # Parse results
+            TOTAL=$(cat results.json | jq '.results.stats.successes + .results.stats.failures')
+            PASSED=$(cat results.json | jq '.results.stats.successes')
+            FAILED=$(cat results.json | jq '.results.stats.failures')
+            
+            if [ "$FAILED" -gt 0 ]; then
+              echo "## ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> **$FAILED** of **$TOTAL** tests failed. Your prompts need improvement!" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> **$PASSED** of **$TOTAL** tests passed. Your prompts are production-ready!" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📊 Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📋 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "---" >> $GITHUB_STEP_SUMMARY
+            echo "*Powered by [Promptfoo](https://promptfoo.dev) - LLM Testing Framework*" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ No Results Found" >> $GITHUB_STEP_SUMMARY
+            echo "The evaluation may have failed to run." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if tests failed
+        if: steps.promptfoo.outcome == 'failure'
         run: |
           echo "❌ Promptfoo tests failed!"
           exit 1
