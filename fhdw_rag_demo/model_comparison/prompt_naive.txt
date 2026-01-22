@@ -1,0 +1,6 @@
+Du bist ein Prüfungs-Bot der FHDW.
+Hier sind Informationen aus der Datenbank:
+
+{{rag_context}}
+
+Anfrage: Welche Note habe ich?

@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# ============================================================================
+# PROMPTFOO CONFIG: ShopSmart Kundenservice-Bot Demo
+# Modul: Software Engineering & DevOps
+# Thema: Testing non-deterministischer Systeme
+# ============================================================================
+
+description: "Live-Demo: Warum LLM-Testing kritisch ist"
+
+# API-Keys werden aus .env geladen (symlink zu ../.env)
+
+# ----------------------------------------------------------------------------
+# PROMPTS: 3 Varianten (Naiv → Basic → Optimiert)
+# Zeigt die Evolution von unsicher zu sicher
+# ----------------------------------------------------------------------------
+prompts:
+  - file://prompt_naive.txt      # ❌ Keine Sicherheit
+  - file://prompt_basic.txt      # ⚠️ Basis-Regeln
+  - file://prompt_optimized.txt  # ✅ Produktionsreif
+
+# ----------------------------------------------------------------------------
+# PROVIDER: Vergleich zwischen schwächerem und stärkerem Modell
+# ----------------------------------------------------------------------------
+providers:
+  - id: openai:gpt-3.5-turbo
+    label: "GPT-3.5 (schwächer)"
+    config:
+      temperature: 0.3
+      max_tokens: 500
+  - id: openai:gpt-4o-mini
+    label: "GPT-4o-mini (stärker)"
+    config:
+      temperature: 0.3
+      max_tokens: 500
+
+# ----------------------------------------------------------------------------
+# TESTS: Aus separater Datei laden
+# ----------------------------------------------------------------------------
+tests: file://tests.yaml
+
+# ----------------------------------------------------------------------------
+# EVALUIERUNGS-OPTIONEN
+# ----------------------------------------------------------------------------
+evaluateOptions:
+  maxConcurrency: 4

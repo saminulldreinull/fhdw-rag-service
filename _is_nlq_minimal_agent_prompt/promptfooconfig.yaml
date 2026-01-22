@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: 'Simple NLQ Agent Prompt'
+
+# API-Keys werden aus .env geladen (symlink zu ../.env)
+
+prompts:
+  - file://prompt.txt
+
+providers:
+  - id: openai:gpt-4-1106-preview
+    label: 'OpenAI: GPT-4o Mini'
+    config:
+      organization: ''
+      temperature: 0.5
+      max_tokens: 1024
+      top_p: 1
+      frequency_penalty: 0
+      presence_penalty: 0
+  - id: anthropic:messages:claude-haiku-4-5-20251001
+    label: 'Anthropic: Claude 4.5 Haiku'
+    config:
+      max_tokens: 2048
+      temperature: 0.5
+  - id: openai:gpt-3.5-turbo-1106
+    config:
+      max_tokens: 2048
+      temperature: 0.5
+
+tests: file://tests.yaml

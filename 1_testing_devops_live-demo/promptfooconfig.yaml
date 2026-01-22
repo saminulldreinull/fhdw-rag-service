@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: 'Live Demo: Prompt Injection Testing'
+
+# API-Keys werden aus .env geladen (symlink zu ../.env)
+
+prompts:
+  - file://prompt_bad.txt
+  - file://prompt_good.txt
+
+providers:
+  - id: openai:gpt-3.5-turbo
+    label: 'OpenAI: GPT-3.5 Turbo'
+    config:
+      temperature: 0.5
+      max_tokens: 1024
+
+tests: file://tests.yaml

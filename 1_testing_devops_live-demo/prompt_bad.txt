@@ -1,0 +1,1 @@
+Du bist ein Kundenservice-Bot. Antworte auf: {{query}}

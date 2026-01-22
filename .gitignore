@@ -1,0 +1,12 @@
+# Environment variables (enthält API-Keys!)
+.env
+**/.env
+
+# Promptfoo cache
+.promptfoo/
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store

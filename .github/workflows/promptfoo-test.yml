@@ -1,0 +1,37 @@
+name: Promptfoo LLM Testing
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-prompts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Promptfoo
+        run: npm install -g promptfoo
+
+      - name: Run Promptfoo Tests
+        working-directory: ./fhdw_rag_demo/model_comparison
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echo "🧪 Running Promptfoo evaluation..."
+          npx promptfoo eval --no-cache
+          
+      - name: Check Test Results
+        if: failure()
+        run: |
+          echo "❌ Promptfoo tests failed!"
+          exit 1
