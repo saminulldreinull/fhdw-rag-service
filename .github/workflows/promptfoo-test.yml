@@ -5,25 +5,26 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:  # Ermöglicht manuelles Starten für Live-Demo
 
 jobs:
-  test-prompts:
-    name: RAG Security Tests
+  security-tests:
+    name: 🔒 RAG Security Tests
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout Repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Promptfoo
+      - name: 📦 Install Promptfoo
         run: npm install -g promptfoo
 
-      - name: Run RAG Security Tests
+      - name: 🧪 Run Security Tests
         id: promptfoo
         working-directory: ./fhdw_rag_demo/model_comparison
         env:
@@ -32,13 +33,23 @@ jobs:
         run: |
           echo "🔒 Running FHDW RAG Security Tests..."
           npx promptfoo eval --no-cache -o results.json --no-table
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
+          
+          # Save results for later steps
+          if [ -f results.json ]; then
+            PASSED=$(cat results.json | jq '.results.stats.successes')
+            FAILED=$(cat results.json | jq '.results.stats.failures')
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Create Security Report
+      - name: 📊 Create Security Report
         if: always()
         working-directory: ./fhdw_rag_demo/model_comparison
         run: |
           echo "# 🎓 FHDW RAG Service - Security Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f results.json ]; then
@@ -51,33 +62,79 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "> **$FAILED** of **$TOTAL** prompts are vulnerable to injection attacks!" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### ⚠️ Action Required" >> $GITHUB_STEP_SUMMARY
-              echo "The RAG Service contains prompts that can be manipulated. Do NOT deploy to production!" >> $GITHUB_STEP_SUMMARY
+              echo "### ⚠️ Deployment Blocked" >> $GITHUB_STEP_SUMMARY
+              echo "This commit contains prompts that can be manipulated by malicious users." >> $GITHUB_STEP_SUMMARY
+              echo "**A security issue has been automatically created.**" >> $GITHUB_STEP_SUMMARY
             else
               echo "## ✅ All Security Tests Passed" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "> All **$PASSED** prompts are resistant to injection attacks. Ready for production!" >> $GITHUB_STEP_SUMMARY
+              echo "> All **$PASSED** prompts are resistant to injection attacks." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### 🚀 Ready for Production" >> $GITHUB_STEP_SUMMARY
+              echo "This commit is safe to deploy." >> $GITHUB_STEP_SUMMARY
             fi
             
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📊 Test Results" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Test | Status |" >> $GITHUB_STEP_SUMMARY
-            echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| ✅ Secure Prompts | $PASSED |" >> $GITHUB_STEP_SUMMARY
             echo "| 🚨 Vulnerable Prompts | $FAILED |" >> $GITHUB_STEP_SUMMARY
-            echo "| 📋 Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📋 Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
             
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "📚 *FHDW - Software Engineering & DevOps | Automatisierte LLM-Sicherheitstests*" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ⚠️ Test Execution Failed" >> $GITHUB_STEP_SUMMARY
-            echo "Could not run security tests. Check the logs for details." >> $GITHUB_STEP_SUMMARY
+            echo "📚 *FHDW Bielefeld | Software Engineering & DevOps*" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Block Deployment if Vulnerable
+      - name: 🚨 Create Security Issue
+        if: steps.promptfoo.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failed = '${{ steps.promptfoo.outputs.failed }}' || 'unknown';
+            const passed = '${{ steps.promptfoo.outputs.passed }}' || 'unknown';
+            
+            const issueBody = `## 🚨 Security Vulnerability Detected
+
+            ### Summary
+            A security scan has detected **${failed} vulnerable prompt(s)** in the RAG Service.
+
+            ### Details
+            | Metric | Value |
+            |--------|-------|
+            | ✅ Secure Prompts | ${passed} |
+            | 🚨 Vulnerable Prompts | ${failed} |
+            | 📌 Commit | \`${{ github.sha }}\` |
+            | 🔗 Branch | \`${{ github.ref_name }}\` |
+            | 🔄 Workflow Run | [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+
+            ### Risk Assessment
+            ⚠️ **HIGH RISK** - The naive prompt is vulnerable to:
+            - RAG Poisoning attacks
+            - Data manipulation
+            - Unauthorized grade changes
+
+            ### Recommended Actions
+            1. Review the failing test cases in the workflow run
+            2. Update \`prompt_naive.txt\` with proper guardrails
+            3. Re-run the security tests
+
+            ---
+            *This issue was automatically created by the FHDW RAG Security Pipeline*
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Security Alert: Vulnerable Prompts Detected',
+              body: issueBody,
+              labels: ['security', 'prompt-injection', 'high-priority']
+            });
+
+      - name: ❌ Block Deployment
         if: steps.promptfoo.outcome == 'failure'
         run: |
-          echo "🚨 SECURITY ALERT: Vulnerable prompts detected! Blocking deployment."
+          echo "🚨 SECURITY ALERT: Deployment blocked due to vulnerable prompts!"
           exit 1
